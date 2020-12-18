@@ -1,5 +1,5 @@
 import {createApi} from 'unsplash-js';
-import {createWriteStream} from 'fs';
+import {createWriteStream, existsSync, mkdirSync} from 'fs';
 import request from 'request';
 import nodeFetch from 'node-fetch';
 import {v4} from 'uuid';
@@ -16,14 +16,22 @@ const unsplash = createApi({
 });
 
 function getRandomImage(query, count) {
+    if (!existsSync('images')) {
+        mkdirSync('images');
+    }
+
     return unsplash
         .photos
         .getRandom({query, count})
         .then(res => res.response)
-        .then(results => Promise.all(results.map((res, index) => {
-            const imageName = res.description ? res.description.split(' ').join('_') : `image_${v4()}`;
-            return download(res.urls.full, `images/${imageName}.png`, () => console.log('done downloading image ', index));
-        })))
+        .then(results => {
+            if (results && results.length > 0) {
+                return Promise.all(results.map((res, index) => {
+                    const imageName = res.description ? res.description.split(' ').join('_') : res.alt_description ? res.alt_description.split(' ').join('_') : `image_${v4()}`;
+                    return download(res.urls.full, `images/${imageName}.png`, () => console.log('done downloading image ', index));
+                }))
+            }
+        })
         .catch(err => console.error(err));
 }
 
